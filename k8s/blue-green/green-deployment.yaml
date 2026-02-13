@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: login-app-green
+  labels:
+    app: login-app
+    version: green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: login-app
+      version: green
+  template:
+    metadata:
+      labels:
+        app: login-app
+        version: green
+    spec:
+      containers:
+      - name: login-app
+        image: flask-login-app:v2
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        # Flask settings
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: flask-db-secrets
+              key: FLASK_SECRET_KEY
+        - name: ENVIRONMENT
+          value: "green"  # Help identify which environment is running
+        # MySQL connection settings
+        - name: DB_HOST
+          value: "mysql-db"
+        - name: MYSQL_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "login_db"
+        - name: DB_USER
+          value: "acctuser"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: flask-db-secrets
+              key: DB_PASSWORD
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"

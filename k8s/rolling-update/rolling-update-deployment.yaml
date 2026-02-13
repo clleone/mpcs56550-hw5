@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: login-app-rolling
+  labels:
+    app: login-app
+    strategy: rolling
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: login-app
+      strategy: rolling
+  template:
+    metadata:
+      labels:
+        app: login-app
+        strategy: rolling
+    spec:
+      containers:
+      - name: login-app
+        image: flask-login-app:v1  # Replace with your actual image name
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        # MySQL connection settings
+        - name: DB_HOST
+          value: "mysql-db"  # MySQL service name
+        - name: MYSQL_PORT
+          value: "3306"
+        - name: DB_NAME
+          value: "login_db"  # Adjust to your database name
+        - name: DB_USER
+          value: "acctuser"  # Adjust to your user name
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: flask-db-secrets
+              key: DB_PASSWORD  # Regular user password (not root)
+        # Flask settings
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: flask-db-secrets
+              key: FLASK_SECRET_KEY
+        # Liveness probe - checks if container is alive
+        livenessProbe:
+          httpGet:
+            path: /  # Change to /health if you have a health endpoint
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # Readiness probe - checks if container is ready to accept traffic
+        readinessProbe:
+          httpGet:
+            path: /  # Change to /health if you have a health endpoint
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
